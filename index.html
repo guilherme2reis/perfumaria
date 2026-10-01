@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<!-- sem bloquear o zoom: quem precisar pode ampliar a tela com os dedos -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#6d2450">
+<!-- fora dos resultados de busca: o app é de uso da família -->
+<meta name="robots" content="noindex, nofollow">
+<title>PERFUMARIA</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="PERFUMARIA">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-view="inicio">
+
+<header class="topbar">
+  <h1 id="titulo-view">🌸 PERFUMARIA</h1>
+</header>
+
+<main>
+
+  <!-- ============ INÍCIO ============ -->
+  <section id="view-inicio" class="view ativa">
+
+    <p class="hoje" id="hoje-texto">—</p>
+
+    <button type="button" class="btn-grande btn-entrada" id="btn-nova-entrada">
+      <span class="btn-grande-icone">+</span>
+      <span class="btn-grande-textos">
+        <span class="btn-grande-titulo">RECEBI</span>
+        <span class="btn-grande-sub">Anotar uma venda</span>
+      </span>
+    </button>
+
+    <button type="button" class="btn-grande btn-saida" id="btn-nova-saida">
+      <span class="btn-grande-icone">−</span>
+      <span class="btn-grande-textos">
+        <span class="btn-grande-titulo">PAGUEI</span>
+        <span class="btn-grande-sub">Anotar um pagamento</span>
+      </span>
+    </button>
+
+    <section class="card">
+      <h2>Resumo de hoje</h2>
+      <div class="totais" id="totais-hoje"></div>
+    </section>
+
+    <section class="card aviso" id="card-lembrete" hidden>
+      <h2>📤 Hora de enviar a planilha</h2>
+      <p class="texto-ajuda">
+        Faz mais de um mês que a planilha não é enviada. Envie para não perder as anotações.
+      </p>
+      <button type="button" class="btn btn-principal" data-ir="dados">Enviar agora</button>
+    </section>
+
+    <section class="card">
+      <h2>Anotações de hoje</h2>
+      <p class="vazio" id="hoje-vazio">Nada anotado hoje ainda.</p>
+      <ul class="lista" id="lista-hoje"></ul>
+      <p class="dica" id="hoje-dica" hidden>Toque em uma anotação para corrigir ou apagar.</p>
+    </section>
+
+  </section>
+
+  <!-- ============ ANOTAR VENDA / PAGAMENTO ============ -->
+  <section id="view-lancar" class="view">
+    <form id="form-lancamento" class="card" novalidate>
+      <div class="campo">
+        <label for="valor">Qual o valor?</label>
+        <input type="text" id="valor" class="campo-valor" inputmode="numeric"
+               placeholder="R$ 0,00" autocomplete="off">
+        <p class="dica">Digite só os números, como na maquininha.</p>
+      </div>
+
+      <div class="campo">
+        <span class="rotulo" id="pergunta-opcao">Como recebeu?</span>
+        <div class="opcoes" id="opcoes"></div>
+      </div>
+
+      <div class="campo">
+        <label for="data">Em que dia?</label>
+        <input type="date" id="data">
+      </div>
+
+      <div class="campo">
+        <label for="descricao">Anotação <span class="opcional">(se quiser)</span></label>
+        <input type="text" id="descricao" autocomplete="off" maxlength="80">
+      </div>
+
+      <button type="submit" class="btn btn-principal btn-salvar" id="btn-salvar">✔ SALVAR</button>
+      <button type="button" class="btn btn-neutro" id="btn-cancelar">Cancelar</button>
+      <button type="button" class="btn btn-perigo" id="btn-apagar" hidden>🗑 Apagar esta anotação</button>
+    </form>
+  </section>
+
+  <!-- ============ RELATÓRIOS ============ -->
+  <section id="view-relatorios" class="view">
+
+    <div class="abas" role="tablist">
+      <button type="button" class="aba ativa" data-relatorio="dia">Dia</button>
+      <button type="button" class="aba" data-relatorio="mes">Mês</button>
+      <button type="button" class="aba" data-relatorio="ano">Ano</button>
+    </div>
+
+    <div class="periodo">
+      <button type="button" class="periodo-seta" id="periodo-anterior" aria-label="Anterior">◀</button>
+      <span class="periodo-nome" id="periodo-nome">—</span>
+      <button type="button" class="periodo-seta" id="periodo-proximo" aria-label="Próximo">▶</button>
+    </div>
+
+    <section class="card">
+      <div class="totais" id="totais-relatorio"></div>
+    </section>
+
+    <section class="card">
+      <h2>Entradas (vendas)</h2>
+      <div id="relatorio-entradas"></div>
+    </section>
+
+    <section class="card">
+      <h2>Saídas (pagamentos)</h2>
+      <div id="relatorio-saidas"></div>
+    </section>
+
+    <section class="card" id="card-detalhe">
+      <h2 id="detalhe-titulo">Anotações do dia</h2>
+      <p class="vazio" id="detalhe-vazio">Nada anotado neste período.</p>
+      <ul class="lista" id="detalhe-lista"></ul>
+    </section>
+
+    <button type="button" class="btn btn-principal" id="btn-enviar-relatorio">📤 Enviar este relatório</button>
+
+  </section>
+
+  <!-- ============ DADOS ============ -->
+  <section id="view-dados" class="view">
+
+    <section class="card">
+      <h2>Enviar a planilha</h2>
+      <p class="texto-ajuda">
+        Gera uma planilha com todas as vendas e pagamentos, que abre no Excel.
+        Dá para mandar pelo WhatsApp ou por e-mail.
+      </p>
+      <button type="button" class="btn btn-principal" id="btn-enviar-planilha">📤 Enviar planilha</button>
+      <button type="button" class="btn btn-neutro" id="btn-baixar-planilha">⬇️ Salvar planilha no aparelho</button>
+      <p class="dica" id="ultima-exportacao"></p>
+    </section>
+
+    <section class="card">
+      <h2>Trazer anotações de uma planilha</h2>
+      <p class="texto-ajuda">
+        Use ao trocar de celular: escolha a planilha que foi enviada por este app e as
+        anotações voltam. O que já existe aqui não é duplicado.
+      </p>
+      <button type="button" class="btn btn-neutro" id="btn-importar">⬆️ Escolher planilha</button>
+      <input type="file" id="input-arquivo" accept=".csv,text/csv,text/comma-separated-values" hidden>
+      <p class="status" id="status-importacao" hidden></p>
+    </section>
+
+    <section class="card">
+      <h2>Apagar tudo</h2>
+      <p class="texto-ajuda">
+        Apaga todas as anotações deste aparelho. Envie a planilha antes — não dá para desfazer.
+      </p>
+      <button type="button" class="btn btn-perigo" id="btn-apagar-tudo">Apagar todas as anotações</button>
+    </section>
+
+  </section>
+
+  <footer class="rodape">
+    🌸 PERFUMARIA · versão <span id="versao">—</span>
+  </footer>
+
+</main>
+
+<nav class="tabbar">
+  <button type="button" class="tab ativa" data-ir="inicio">
+    <span class="tab-icone">🏠</span><span class="tab-label">Início</span>
+  </button>
+  <button type="button" class="tab" data-ir="relatorios">
+    <span class="tab-icone">📊</span><span class="tab-label">Relatórios</span>
+  </button>
+  <button type="button" class="tab" data-ir="dados">
+    <span class="tab-icone">💾</span><span class="tab-label">Planilha</span>
+  </button>
+</nav>
+
+<div class="modal-fundo" id="modal" hidden>
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="modal-mensagem">
+    <p class="modal-mensagem" id="modal-mensagem"></p>
+    <button type="button" class="btn btn-perigo" id="modal-sim">Sim, apagar</button>
+    <button type="button" class="btn btn-neutro" id="modal-nao">Não, voltar</button>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>

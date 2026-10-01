@@ -1,0 +1,6 @@
+# planilhas exportadas pelo app: são dados do negócio, não vão para o repositório público
+*.csv
+*.xlsx
+
+# configuração local do editor
+.claude/

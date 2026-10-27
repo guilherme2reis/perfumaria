@@ -1,4 +1,4 @@
-const VERSAO = '1.1.0';
+const VERSAO = '1.2.0';
 const STORAGE_KEY = 'perfumaria.lancamentos';
 const STORAGE_EXPORTACAO = 'perfumaria.ultimaExportacao';
 
@@ -47,6 +47,7 @@ const TEXTOS = {
 const TITULOS = {
   inicio: '🌸 PERFUMARIA',
   relatorios: 'Relatórios',
+  compras: 'Compras por empresa',
   dados: 'Planilha',
 };
 
@@ -390,7 +391,7 @@ function renderRelatorio(lista) {
   const itens = itensDoRelatorio(lista);
   const resumo = resumir(itens);
 
-  document.querySelectorAll('.aba').forEach((aba) => {
+  document.querySelectorAll('[data-relatorio]').forEach((aba) => {
     aba.classList.toggle('ativa', aba.dataset.relatorio === tipo);
   });
 
@@ -401,7 +402,6 @@ function renderRelatorio(lista) {
   renderTotais(document.getElementById('totais-relatorio'), resumo);
   renderCategorias(document.getElementById('relatorio-entradas'), 'entrada', resumo.entrada);
   renderCategorias(document.getElementById('relatorio-saidas'), 'saida', resumo.saida);
-  renderEmpresas(itens);
 
   const ul = document.getElementById('detalhe-lista');
   ul.innerHTML = '';
@@ -434,71 +434,6 @@ function renderRelatorio(lista) {
   }
 }
 
-/**
- * Pagamentos de cada empresa no período: só as que receberam algo, na ordem da tela.
- * No relatório do ano os pagamentos vêm somados por mês, senão a lista fica longa demais.
- */
-function comprasPorEmpresa(itens) {
-  const pagamentos = itens
-    .filter((item) => item.tipo === 'saida')
-    .sort((a, b) => (a.data === b.data ? a.criadoEm - b.criadoEm : a.data.localeCompare(b.data)));
-
-  return totaisPorOpcao('saida', resumir(pagamentos).saida)
-    .filter(({ total }) => total > 0)
-    .map(({ nome, total }) => {
-      const daEmpresa = pagamentos.filter((item) => item.categoria === nome);
-      const porMes = agruparPorData(daEmpresa, 7)
-        .reverse()
-        .map(([mes, grupo]) => ({ mes, total: resumir(grupo).saidas, quantidade: grupo.length }));
-      return { nome, total, pagamentos: daEmpresa, porMes };
-    });
-}
-
-function textoQuantidade(n) {
-  return n === 1 ? '1 pagamento' : `${n} pagamentos`;
-}
-
-function renderEmpresas(itens) {
-  const container = document.getElementById('relatorio-empresas');
-  container.innerHTML = '';
-
-  const empresas = comprasPorEmpresa(itens);
-  document.getElementById('empresas-vazio').hidden = empresas.length > 0;
-
-  for (const empresa of empresas) {
-    const bloco = el('div', 'empresa');
-
-    const topo = el('div', 'empresa-topo');
-    topo.append(el('span', 'empresa-nome', empresa.nome), el('span', 'empresa-total', formatoMoeda(empresa.total)));
-    bloco.append(topo, el('p', 'empresa-sub', textoQuantidade(empresa.pagamentos.length)));
-
-    const ul = el('ul', 'lista');
-    if (relatorio.tipo === 'ano') {
-      // tocar em um mês abre o relatório daquele mês, com cada pagamento
-      for (const { mes, total, quantidade } of empresa.porMes) {
-        ul.appendChild(criarItem({
-          nome: MESES[Number(mes.slice(5, 7)) - 1],
-          sub: textoQuantidade(quantidade),
-          valor: formatoMoeda(total),
-          aoTocar: () => abrirRelatorio('mes', `${mes}-01`),
-        }));
-      }
-    } else {
-      for (const item of empresa.pagamentos) {
-        ul.appendChild(criarItem({
-          nome: relatorio.tipo === 'dia' ? 'Pagamento' : formatoData(item.data).slice(0, 5),
-          sub: item.descricao,
-          valor: formatoMoeda(item.valor),
-          aoTocar: () => abrirFormulario('saida', item),
-        }));
-      }
-    }
-
-    bloco.appendChild(ul);
-    container.appendChild(bloco);
-  }
-}
-
 /** Relatório em texto, para mandar pelo WhatsApp. */
 function textoDoRelatorio(lista) {
   const { tipo, ref } = relatorio;
@@ -517,28 +452,16 @@ function textoDoRelatorio(lista) {
 
   linhas.push('', `SALDO: ${formatoSaldo(resumo.saldo)}`);
 
-  const empresas = comprasPorEmpresa(itensDoRelatorio(lista));
-  if (empresas.length > 0) linhas.push('', 'COMPRAS POR EMPRESA');
-  for (const empresa of empresas) {
-    linhas.push('', `${empresa.nome}: ${formatoMoeda(empresa.total)} (${textoQuantidade(empresa.pagamentos.length)})`);
-    if (tipo === 'ano') {
-      for (const { mes, total } of empresa.porMes) {
-        linhas.push(`  ${MESES[Number(mes.slice(5, 7)) - 1]}: ${formatoMoeda(total)}`);
-      }
-    } else {
-      for (const item of empresa.pagamentos) {
-        const anotacao = item.descricao ? ` — ${item.descricao}` : '';
-        linhas.push(`  ${formatoData(item.data).slice(0, 5)}: ${formatoMoeda(item.valor)}${anotacao}`);
-      }
-    }
-  }
 
   return linhas.join('\n');
 }
 
-async function enviarRelatorio() {
-  const texto = textoDoRelatorio(carregar());
+function enviarRelatorio() {
+  compartilharTexto(textoDoRelatorio(carregar()));
+}
 
+/** Abre a tela de compartilhar do celular; sem ela, copia o texto para colar no WhatsApp. */
+async function compartilharTexto(texto) {
   if (navigator.share) {
     try {
       await navigator.share({ text: texto });
@@ -554,6 +477,161 @@ async function enviarRelatorio() {
   } catch {
     mostrarToast('Este aparelho não deixou enviar o relatório.');
   }
+}
+
+/* ==================== compras por empresa ==================== */
+
+/** Aba Compras: período 'mes' | 'ano' | 'tudo' e a empresa aberta (null = todas). */
+const compras = { tipo: 'mes', ref: hojeISO(), empresa: null };
+
+function textoQuantidade(n) {
+  return n === 1 ? '1 pagamento' : `${n} pagamentos`;
+}
+
+/** "2026-09" -> "Setembro de 2026" */
+function nomeMesAno(ym) {
+  return `${MESES[Number(ym.slice(5, 7)) - 1]} de ${ym.slice(0, 4)}`;
+}
+
+function nomePeriodoCompras() {
+  return compras.tipo === 'tudo' ? 'Todo o período' : nomePeriodo(compras.ref, compras.tipo);
+}
+
+/** Pagamentos do período escolhido, só da empresa aberta quando há uma. */
+function pagamentosDeCompras(lista) {
+  const chave = compras.tipo === 'tudo' ? '' : chavePeriodo(compras.ref, compras.tipo);
+  return lista.filter((item) => (
+    item.tipo === 'saida'
+    && item.data.startsWith(chave)
+    && (!compras.empresa || item.categoria === compras.empresa)
+  ));
+}
+
+function abrirCompras(tipo, ref, empresa) {
+  compras.tipo = tipo;
+  compras.ref = ref;
+  compras.empresa = empresa;
+  renderCompras(carregar());
+  window.scrollTo(0, 0);
+}
+
+function criarBarra(fracao) {
+  const barra = el('span', 'barra');
+  const cheia = el('span', 'barra-cheia');
+  cheia.style.width = `${Math.round(fracao * 100)}%`;
+  barra.appendChild(cheia);
+  return barra;
+}
+
+function renderCompras(lista) {
+  const { tipo, ref, empresa } = compras;
+  const pagamentos = pagamentosDeCompras(lista);
+  const total = resumir(pagamentos).saidas;
+
+  document.querySelectorAll('[data-compras]').forEach((aba) => {
+    aba.classList.toggle('ativa', aba.dataset.compras === tipo);
+  });
+
+  document.getElementById('compras-periodo').hidden = tipo === 'tudo';
+  if (tipo !== 'tudo') {
+    document.getElementById('compras-periodo-nome').textContent = nomePeriodo(ref, tipo);
+    document.getElementById('compras-proximo').disabled =
+      chavePeriodo(ref, tipo) >= chavePeriodo(hojeISO(), tipo);
+  }
+
+  document.getElementById('compras-rotulo').textContent = empresa || 'Total pago às empresas';
+  document.getElementById('compras-total').textContent = formatoMoeda(total);
+  document.getElementById('compras-quantidade').textContent = textoQuantidade(pagamentos.length);
+
+  document.getElementById('compras-lista-card').hidden = Boolean(empresa);
+  document.getElementById('compras-empresa').hidden = !empresa;
+
+  if (!empresa) {
+    // todas as empresas, sempre na mesma ordem da tela de anotar, com a parte de cada uma
+    const ul = document.getElementById('compras-lista');
+    ul.innerHTML = '';
+
+    for (const op of totaisPorOpcao('saida', resumir(pagamentos).saida)) {
+      const quantidade = pagamentos.filter((item) => item.categoria === op.nome).length;
+      const li = criarItem({
+        nome: op.nome,
+        sub: quantidade > 0
+          ? `${textoQuantidade(quantidade)} · ${Math.round((op.total / total) * 100)}% do total`
+          : 'Nenhum pagamento',
+        valor: formatoMoeda(op.total),
+        aoTocar: () => abrirCompras(tipo, ref, op.nome),
+      });
+      li.querySelector('.item-textos').appendChild(criarBarra(total > 0 ? op.total / total : 0));
+      if (quantidade === 0) li.querySelector('.item').classList.add('zerada');
+      ul.appendChild(li);
+    }
+    return;
+  }
+
+  // mês a mês só quando o período tem mais de um mês; tocar abre aquele mês
+  const ulMeses = document.getElementById('compras-meses');
+  ulMeses.innerHTML = '';
+  document.getElementById('compras-meses-card').hidden = tipo === 'mes' || pagamentos.length === 0;
+
+  if (tipo !== 'mes') {
+    for (const [mes, grupo] of agruparPorData(pagamentos, 7)) {
+      ulMeses.appendChild(criarItem({
+        nome: tipo === 'ano' ? MESES[Number(mes.slice(5, 7)) - 1] : nomeMesAno(mes),
+        sub: textoQuantidade(grupo.length),
+        valor: formatoMoeda(resumir(grupo).saidas),
+        aoTocar: () => abrirCompras('mes', `${mes}-01`, empresa),
+      }));
+    }
+  }
+
+  const ul = document.getElementById('compras-pagamentos');
+  ul.innerHTML = '';
+  document.getElementById('compras-pagamentos-vazio').hidden = pagamentos.length > 0;
+
+  for (const item of ordenarRecentes(pagamentos)) {
+    ul.appendChild(criarItem({
+      nome: tipo === 'mes' ? formatoData(item.data).slice(0, 5) : formatoData(item.data),
+      sub: item.descricao,
+      valor: formatoMoeda(item.valor),
+      aoTocar: () => abrirFormulario('saida', item),
+    }));
+  }
+}
+
+/** Resumo das compras em texto, para mandar pelo WhatsApp. */
+function textoDasCompras(lista) {
+  const pagamentos = pagamentosDeCompras(lista);
+  const linhas = [
+    `🌸 PERFUMARIA — Compras ${compras.empresa ? `da ${compras.empresa}` : 'por empresa'}`,
+    nomePeriodoCompras(),
+    '',
+    `TOTAL PAGO: ${formatoMoeda(resumir(pagamentos).saidas)} (${textoQuantidade(pagamentos.length)})`,
+  ];
+
+  for (const op of totaisPorOpcao('saida', resumir(pagamentos).saida)) {
+    const daEmpresa = pagamentos
+      .filter((item) => item.categoria === op.nome)
+      .sort((a, b) => a.data.localeCompare(b.data));
+    if (daEmpresa.length === 0) continue;
+
+    linhas.push('', `${op.nome}: ${formatoMoeda(op.total)} (${textoQuantidade(daEmpresa.length)})`);
+
+    // cada pagamento no mês ou com uma empresa aberta; no ano e no "tudo", somado por mês
+    if (compras.tipo === 'mes' || compras.empresa) {
+      for (const item of daEmpresa) {
+        const data = compras.tipo === 'mes' ? formatoData(item.data).slice(0, 5) : formatoData(item.data);
+        const anotacao = item.descricao ? ` — ${item.descricao}` : '';
+        linhas.push(`  ${data}: ${formatoMoeda(item.valor)}${anotacao}`);
+      }
+    } else {
+      for (const [mes, grupo] of agruparPorData(daEmpresa, 7).reverse()) {
+        const nome = compras.tipo === 'ano' ? MESES[Number(mes.slice(5, 7)) - 1] : nomeMesAno(mes);
+        linhas.push(`  ${nome}: ${formatoMoeda(resumir(grupo).saidas)}`);
+      }
+    }
+  }
+
+  return linhas.join('\n');
 }
 
 /* ==================== formulário ==================== */
@@ -1041,6 +1119,7 @@ function render() {
   const lista = carregar();
   renderInicio(lista);
   renderRelatorio(lista);
+  renderCompras(lista);
 
   const ultima = ultimaExportacao();
   document.getElementById('ultima-exportacao').textContent = ultima
@@ -1085,6 +1164,22 @@ function init() {
     abrirRelatorio(relatorio.tipo, deslocarPeriodo(relatorio.ref, relatorio.tipo, 1));
   });
   document.getElementById('btn-enviar-relatorio').addEventListener('click', enviarRelatorio);
+
+  document.querySelectorAll('[data-compras]').forEach((aba) => {
+    aba.addEventListener('click', () => abrirCompras(aba.dataset.compras, hojeISO(), compras.empresa));
+  });
+  document.getElementById('compras-anterior').addEventListener('click', () => {
+    abrirCompras(compras.tipo, deslocarPeriodo(compras.ref, compras.tipo, -1), compras.empresa);
+  });
+  document.getElementById('compras-proximo').addEventListener('click', () => {
+    abrirCompras(compras.tipo, deslocarPeriodo(compras.ref, compras.tipo, 1), compras.empresa);
+  });
+  document.getElementById('compras-voltar').addEventListener('click', () => {
+    abrirCompras(compras.tipo, compras.ref, null);
+  });
+  document.getElementById('btn-enviar-compras').addEventListener('click', () => {
+    compartilharTexto(textoDasCompras(carregar()));
+  });
 
   document.getElementById('btn-enviar-planilha').addEventListener('click', enviarPlanilha);
   document.getElementById('btn-baixar-planilha').addEventListener('click', baixarPlanilha);

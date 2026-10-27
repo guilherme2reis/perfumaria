@@ -13,7 +13,8 @@ ficam salvas no próprio aparelho (`localStorage`). Mesmo padrão do app
 | Tela | O que faz |
 | --- | --- |
 | **Início** | Dois botões: **RECEBI** (anotar uma venda) e **PAGUEI** (anotar um pagamento). Embaixo, o resumo de hoje — entrou, saiu, saldo — e as anotações do dia |
-| **Relatórios** | **Dia**, **Mês** e **Ano**, com setas ◀ ▶ para andar no tempo. Mostra entrou/saiu/saldo, o total por forma de recebimento, o total por fornecedor e as **compras por empresa** (cada pagamento feito a cada empresa; no relatório do ano, somados por mês) |
+| **Relatórios** | **Dia**, **Mês** e **Ano**, com setas ◀ ▶ para andar no tempo. Mostra entrou/saiu/saldo, o total por forma de recebimento e o total por fornecedor |
+| **Compras** | Quanto foi pago a cada empresa no **Mês**, no **Ano** ou em **Tudo**, com a parte de cada uma no total. Tocar em uma empresa mostra cada pagamento feito a ela (e o mês a mês, no ano e no tudo) |
 | **Planilha** | Enviar a planilha (WhatsApp, e-mail…), salvar no aparelho, trazer anotações de uma planilha e apagar tudo |
 
 Para anotar: digitar o valor (só os números, como na maquininha: `1250` vira `R$ 12,50`),
@@ -30,7 +31,9 @@ aquele dia; no do ano, tocar em um mês abre aquele mês.
 Os dados ficam **só no celular dela**. Há duas formas de receber:
 
 - **📤 Enviar este relatório** (tela Relatórios): manda o resumo do dia, mês ou ano como
-  texto, direto numa conversa do WhatsApp — inclusive a lista de compras por empresa.
+  texto, direto numa conversa do WhatsApp.
+- **📤 Enviar este resumo** (tela Compras): o mesmo, com as compras por empresa do período
+  (ou só de uma empresa, quando ela estiver aberta).
 - **📤 Enviar planilha** (tela Planilha): manda o arquivo `perfumaria-AAAA-MM-DD.csv` com
   todas as anotações. Abre no Excel com acentos corretos.
 

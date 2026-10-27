@@ -127,12 +127,6 @@
       <div id="relatorio-saidas"></div>
     </section>
 
-    <section class="card">
-      <h2>Compras por empresa</h2>
-      <p class="vazio" id="empresas-vazio">Nenhum pagamento neste período.</p>
-      <div id="relatorio-empresas"></div>
-    </section>
-
     <section class="card" id="card-detalhe">
       <h2 id="detalhe-titulo">Anotações do dia</h2>
       <p class="vazio" id="detalhe-vazio">Nada anotado neste período.</p>
@@ -140,6 +134,54 @@
     </section>
 
     <button type="button" class="btn btn-principal" id="btn-enviar-relatorio">📤 Enviar este relatório</button>
+
+  </section>
+
+  <!-- ============ COMPRAS POR EMPRESA ============ -->
+  <section id="view-compras" class="view">
+
+    <div class="abas" role="tablist">
+      <button type="button" class="aba ativa" data-compras="mes">Mês</button>
+      <button type="button" class="aba" data-compras="ano">Ano</button>
+      <button type="button" class="aba" data-compras="tudo">Tudo</button>
+    </div>
+
+    <div class="periodo" id="compras-periodo">
+      <button type="button" class="periodo-seta" id="compras-anterior" aria-label="Anterior">◀</button>
+      <span class="periodo-nome" id="compras-periodo-nome">—</span>
+      <button type="button" class="periodo-seta" id="compras-proximo" aria-label="Próximo">▶</button>
+    </div>
+
+    <section class="card total-compras">
+      <span class="total-compras-rotulo" id="compras-rotulo">Total pago</span>
+      <span class="total-compras-valor" id="compras-total">—</span>
+      <span class="total-compras-sub" id="compras-quantidade">—</span>
+    </section>
+
+    <!-- lista de todas as empresas -->
+    <section class="card" id="compras-lista-card">
+      <h2>Quanto foi pago a cada empresa</h2>
+      <ul class="lista" id="compras-lista"></ul>
+      <p class="dica">Toque em uma empresa para ver cada pagamento.</p>
+    </section>
+
+    <!-- uma empresa aberta -->
+    <div id="compras-empresa" hidden>
+      <button type="button" class="btn btn-neutro btn-voltar" id="compras-voltar">‹ Ver todas as empresas</button>
+
+      <section class="card" id="compras-meses-card">
+        <h2>Mês a mês</h2>
+        <ul class="lista" id="compras-meses"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Pagamentos</h2>
+        <p class="vazio" id="compras-pagamentos-vazio">Nenhum pagamento neste período.</p>
+        <ul class="lista" id="compras-pagamentos"></ul>
+      </section>
+    </div>
+
+    <button type="button" class="btn btn-principal" id="btn-enviar-compras">📤 Enviar este resumo</button>
 
   </section>
 
@@ -190,6 +232,9 @@
   </button>
   <button type="button" class="tab" data-ir="relatorios">
     <span class="tab-icone">📊</span><span class="tab-label">Relatórios</span>
+  </button>
+  <button type="button" class="tab" data-ir="compras">
+    <span class="tab-icone">🛍️</span><span class="tab-label">Compras</span>
   </button>
   <button type="button" class="tab" data-ir="dados">
     <span class="tab-icone">💾</span><span class="tab-label">Planilha</span>

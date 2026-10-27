@@ -215,22 +215,27 @@ main {
 
 /* ==================== compras por empresa ==================== */
 
-.empresa { padding: 14px 0; border-top: 2px solid var(--borda); }
-.empresa:first-child { padding-top: 0; border-top: 0; }
-.empresa:last-child { padding-bottom: 0; }
+.total-compras { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.total-compras-rotulo { font-size: 1.1rem; font-weight: 700; color: var(--marca); }
+.total-compras-valor { font-size: 2rem; font-weight: 800; }
+.total-compras-sub { color: var(--suave); }
 
-.empresa-topo {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  font-size: 1.2rem;
-  font-weight: 800;
+.barra {
+  display: block;
+  width: 100%;
+  height: 10px;
+  margin-top: 8px;
+  border-radius: 5px;
+  background: var(--marca-clara);
+  overflow: hidden;
 }
 
-.empresa-nome { color: var(--marca); }
-.empresa-total { white-space: nowrap; }
-.empresa-sub { margin: 2px 0 4px; color: var(--suave); font-size: 0.9rem; }
+.barra-cheia { display: block; height: 100%; background: var(--marca); }
+
+#compras-lista .item-textos { flex: 1; }
+.item.zerada .item-nome, .item.zerada .item-valor { color: var(--suave); font-weight: 400; }
+
+.btn-voltar { margin: 0 0 16px; }
 
 /* ==================== formulário ==================== */
 
@@ -338,7 +343,7 @@ main {
   bottom: 0;
   z-index: 10;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   background: #fff;
   border-top: 1px solid var(--borda);
   padding-bottom: env(safe-area-inset-bottom);
@@ -360,7 +365,7 @@ main {
 
 .tab.ativa { color: var(--marca); border-top-color: var(--marca); }
 .tab-icone { font-size: 1.5rem; line-height: 1; }
-.tab-label { font-size: 0.9rem; }
+.tab-label { font-size: 0.85rem; }
 
 /* no formulário a barra some: sobra espaço para o teclado e só há um caminho a seguir */
 body[data-view="lancar"] .tabbar { display: none; }

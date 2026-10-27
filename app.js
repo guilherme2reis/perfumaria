@@ -1,4 +1,4 @@
-const VERSAO = '1.0.0';
+const VERSAO = '1.1.0';
 const STORAGE_KEY = 'perfumaria.lancamentos';
 const STORAGE_EXPORTACAO = 'perfumaria.ultimaExportacao';
 
@@ -401,6 +401,7 @@ function renderRelatorio(lista) {
   renderTotais(document.getElementById('totais-relatorio'), resumo);
   renderCategorias(document.getElementById('relatorio-entradas'), 'entrada', resumo.entrada);
   renderCategorias(document.getElementById('relatorio-saidas'), 'saida', resumo.saida);
+  renderEmpresas(itens);
 
   const ul = document.getElementById('detalhe-lista');
   ul.innerHTML = '';
@@ -433,6 +434,71 @@ function renderRelatorio(lista) {
   }
 }
 
+/**
+ * Pagamentos de cada empresa no período: só as que receberam algo, na ordem da tela.
+ * No relatório do ano os pagamentos vêm somados por mês, senão a lista fica longa demais.
+ */
+function comprasPorEmpresa(itens) {
+  const pagamentos = itens
+    .filter((item) => item.tipo === 'saida')
+    .sort((a, b) => (a.data === b.data ? a.criadoEm - b.criadoEm : a.data.localeCompare(b.data)));
+
+  return totaisPorOpcao('saida', resumir(pagamentos).saida)
+    .filter(({ total }) => total > 0)
+    .map(({ nome, total }) => {
+      const daEmpresa = pagamentos.filter((item) => item.categoria === nome);
+      const porMes = agruparPorData(daEmpresa, 7)
+        .reverse()
+        .map(([mes, grupo]) => ({ mes, total: resumir(grupo).saidas, quantidade: grupo.length }));
+      return { nome, total, pagamentos: daEmpresa, porMes };
+    });
+}
+
+function textoQuantidade(n) {
+  return n === 1 ? '1 pagamento' : `${n} pagamentos`;
+}
+
+function renderEmpresas(itens) {
+  const container = document.getElementById('relatorio-empresas');
+  container.innerHTML = '';
+
+  const empresas = comprasPorEmpresa(itens);
+  document.getElementById('empresas-vazio').hidden = empresas.length > 0;
+
+  for (const empresa of empresas) {
+    const bloco = el('div', 'empresa');
+
+    const topo = el('div', 'empresa-topo');
+    topo.append(el('span', 'empresa-nome', empresa.nome), el('span', 'empresa-total', formatoMoeda(empresa.total)));
+    bloco.append(topo, el('p', 'empresa-sub', textoQuantidade(empresa.pagamentos.length)));
+
+    const ul = el('ul', 'lista');
+    if (relatorio.tipo === 'ano') {
+      // tocar em um mês abre o relatório daquele mês, com cada pagamento
+      for (const { mes, total, quantidade } of empresa.porMes) {
+        ul.appendChild(criarItem({
+          nome: MESES[Number(mes.slice(5, 7)) - 1],
+          sub: textoQuantidade(quantidade),
+          valor: formatoMoeda(total),
+          aoTocar: () => abrirRelatorio('mes', `${mes}-01`),
+        }));
+      }
+    } else {
+      for (const item of empresa.pagamentos) {
+        ul.appendChild(criarItem({
+          nome: relatorio.tipo === 'dia' ? 'Pagamento' : formatoData(item.data).slice(0, 5),
+          sub: item.descricao,
+          valor: formatoMoeda(item.valor),
+          aoTocar: () => abrirFormulario('saida', item),
+        }));
+      }
+    }
+
+    bloco.appendChild(ul);
+    container.appendChild(bloco);
+  }
+}
+
 /** Relatório em texto, para mandar pelo WhatsApp. */
 function textoDoRelatorio(lista) {
   const { tipo, ref } = relatorio;
@@ -450,6 +516,23 @@ function textoDoRelatorio(lista) {
   }
 
   linhas.push('', `SALDO: ${formatoSaldo(resumo.saldo)}`);
+
+  const empresas = comprasPorEmpresa(itensDoRelatorio(lista));
+  if (empresas.length > 0) linhas.push('', 'COMPRAS POR EMPRESA');
+  for (const empresa of empresas) {
+    linhas.push('', `${empresa.nome}: ${formatoMoeda(empresa.total)} (${textoQuantidade(empresa.pagamentos.length)})`);
+    if (tipo === 'ano') {
+      for (const { mes, total } of empresa.porMes) {
+        linhas.push(`  ${MESES[Number(mes.slice(5, 7)) - 1]}: ${formatoMoeda(total)}`);
+      }
+    } else {
+      for (const item of empresa.pagamentos) {
+        const anotacao = item.descricao ? ` — ${item.descricao}` : '';
+        linhas.push(`  ${formatoData(item.data).slice(0, 5)}: ${formatoMoeda(item.valor)}${anotacao}`);
+      }
+    }
+  }
+
   return linhas.join('\n');
 }
 

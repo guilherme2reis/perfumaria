@@ -213,6 +213,25 @@ main {
 .item-valor { font-weight: 700; white-space: nowrap; }
 .item-saldo { color: var(--suave); font-size: 0.9rem; white-space: nowrap; }
 
+/* ==================== compras por empresa ==================== */
+
+.empresa { padding: 14px 0; border-top: 2px solid var(--borda); }
+.empresa:first-child { padding-top: 0; border-top: 0; }
+.empresa:last-child { padding-bottom: 0; }
+
+.empresa-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.empresa-nome { color: var(--marca); }
+.empresa-total { white-space: nowrap; }
+.empresa-sub { margin: 2px 0 4px; color: var(--suave); font-size: 0.9rem; }
+
 /* ==================== formulário ==================== */
 
 .campo { margin-bottom: 20px; }

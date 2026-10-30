@@ -1,6 +1,7 @@
-const VERSAO = '1.2.0';
+const VERSAO = '1.3.0';
 const STORAGE_KEY = 'perfumaria.lancamentos';
 const STORAGE_EXPORTACAO = 'perfumaria.ultimaExportacao';
+const STORAGE_CONFIG = 'perfumaria.config';
 
 /** @typedef {{id:string, tipo:'entrada'|'saida', categoria:string, descricao:string, valor:number, data:string, criadoEm:number}} Lancamento */
 
@@ -434,49 +435,148 @@ function renderRelatorio(lista) {
   }
 }
 
-/** Relatório em texto, para mandar pelo WhatsApp. */
+/* ==================== envio pelo WhatsApp ==================== */
+
+// acima disso a mensagem fica comprida demais para o WhatsApp; o resto vai na planilha
+const MAX_LANCAMENTOS_TEXTO = 60;
+
+function lerConfig() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_CONFIG)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function gravarConfig(config) {
+  try {
+    localStorage.setItem(STORAGE_CONFIG, JSON.stringify(config));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Número cadastrado só com dígitos e com o 55 do Brasil: "(28) 99999-9999" -> "5528999999999". */
+function foneWhatsApp() {
+  const digitos = String(lerConfig().fone || '').replace(/\D/g, '');
+  // 10 ou 11 dígitos = DDD + número, sem o código do país
+  return digitos.length === 10 || digitos.length === 11 ? `55${digitos}` : digitos;
+}
+
+/** "5528999999999" -> "(28) 99999-9999", para mostrar na tela para quem vai o relatório. */
+function foneFormatado(fone) {
+  const n = fone.startsWith('55') ? fone.slice(2) : fone;
+  return n.length >= 10 ? `(${n.slice(0, 2)}) ${n.slice(2, -4)}-${n.slice(-4)}` : fone;
+}
+
+/**
+ * Abre a conversa direto no WhatsApp com a mensagem pronta, só falta tocar em enviar.
+ * Sem número cadastrado, o WhatsApp pede para escolher a conversa.
+ */
+function enviarNoWhatsApp(texto) {
+  window.location.href = `https://wa.me/${foneWhatsApp()}?text=${encodeURIComponent(texto)}`;
+}
+
+function renderDicasWhatsApp() {
+  const fone = foneWhatsApp();
+  const texto = fone
+    ? `O botão verde abre a conversa com ${foneFormatado(fone)} no WhatsApp.`
+    : '⚠️ Nenhum número cadastrado: o WhatsApp vai pedir para escolher a conversa. '
+      + 'O número pode ser cadastrado na aba Planilha.';
+  document.querySelectorAll('.dica-whats').forEach((dica) => { dica.textContent = texto; });
+  document.getElementById('cfg-fone').value = lerConfig().fone || '';
+}
+
+function linhaLancamento(item) {
+  const sinal = item.tipo === 'entrada' ? '➕' : '➖';
+  const anotacao = item.descricao ? ` (${item.descricao})` : '';
+  return `${sinal} ${formatoMoeda(item.valor)} ${item.categoria}${anotacao}`;
+}
+
+/** Lista as anotações em ordem, com o dia em cima de cada grupo quando o período tem vários dias. */
+function linhasDeLancamentos(linhas, itens, separarPorDia) {
+  const ordenados = [...itens].sort((a, b) => (
+    a.data === b.data ? a.criadoEm - b.criadoEm : a.data.localeCompare(b.data)
+  ));
+
+  let diaAtual = '';
+  for (const item of ordenados.slice(0, MAX_LANCAMENTOS_TEXTO)) {
+    if (separarPorDia && item.data !== diaAtual) {
+      diaAtual = item.data;
+      linhas.push('', `📅 ${formatoData(item.data)}`);
+    }
+    linhas.push(linhaLancamento(item));
+  }
+
+  if (ordenados.length > MAX_LANCAMENTOS_TEXTO) {
+    linhas.push('', `… e mais ${ordenados.length - MAX_LANCAMENTOS_TEXTO}. Veja a planilha completa.`);
+  }
+}
+
+function linhasPorOpcao(linhas, titulo, tipo, mapa) {
+  const comValor = totaisPorOpcao(tipo, mapa).filter(({ total }) => total > 0);
+  if (comValor.length === 0) return;
+  linhas.push('', titulo);
+  for (const { nome, total } of comValor) linhas.push(`• ${nome}: ${formatoMoeda(total)}`);
+}
+
+/** Relatório em texto, com a formatação do WhatsApp (*negrito*, _itálico_). */
 function textoDoRelatorio(lista) {
   const { tipo, ref } = relatorio;
-  const resumo = resumir(itensDoRelatorio(lista));
-  const linhas = [`🌸 PERFUMARIA — ${nomePeriodo(ref, tipo)}`, ''];
+  const itens = itensDoRelatorio(lista);
+  const r = resumir(itens);
+  const titulo = { dia: 'Relatório do dia', mes: 'Relatório do mês', ano: 'Relatório do ano' }[tipo];
 
-  linhas.push(`ENTRADAS: ${formatoMoeda(resumo.entradas)}`);
-  for (const { nome, total } of totaisPorOpcao('entrada', resumo.entrada)) {
-    if (total > 0) linhas.push(`  ${nome}: ${formatoMoeda(total)}`);
+  const linhas = [
+    '*🌸 PERFUMARIA*',
+    `${titulo} — ${nomePeriodo(ref, tipo)}`,
+    '',
+    `➕ Entrou: *${formatoMoeda(r.entradas)}*`,
+    `➖ Saiu: *${formatoMoeda(r.saidas)}*`,
+    `💰 Saldo: *${formatoSaldo(r.saldo)}*`,
+  ];
+
+  linhasPorOpcao(linhas, '_Entradas por pagamento:_', 'entrada', r.entrada);
+  linhasPorOpcao(linhas, '_Saídas por empresa:_', 'saida', r.saida);
+
+  if (tipo === 'ano' && itens.length > 0) {
+    // no ano, um resumo por mês em vez de cada anotação
+    linhas.push('', '_Mês a mês:_');
+    for (const [mes, grupo] of agruparPorData(itens, 7).reverse()) {
+      const rm = resumir(grupo);
+      linhas.push(`• ${MESES[Number(mes.slice(5, 7)) - 1]}: ➕ ${formatoMoeda(rm.entradas)} ➖ ${formatoMoeda(rm.saidas)} = *${formatoSaldo(rm.saldo)}*`);
+    }
+  } else if (itens.length > 0) {
+    linhas.push('', '_Lançamentos:_');
+    linhasDeLancamentos(linhas, itens, tipo !== 'dia');
   }
-
-  linhas.push('', `SAÍDAS: ${formatoMoeda(resumo.saidas)}`);
-  for (const { nome, total } of totaisPorOpcao('saida', resumo.saida)) {
-    if (total > 0) linhas.push(`  ${nome}: ${formatoMoeda(total)}`);
-  }
-
-  linhas.push('', `SALDO: ${formatoSaldo(resumo.saldo)}`);
-
 
   return linhas.join('\n');
 }
 
-function enviarRelatorio() {
-  compartilharTexto(textoDoRelatorio(carregar()));
+/** Planilha só das anotações de um período: abre a lista de compartilhar ou salva no aparelho. */
+async function enviarArquivo(itens, nomeArquivo) {
+  if (itens.length === 0) {
+    mostrarToast('Nada anotado neste período.');
+    return;
+  }
+
+  const arquivo = new File([BOM + gerarCSV(itens)], nomeArquivo, { type: 'text/csv' });
+
+  if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+    try {
+      await navigator.share({ files: [arquivo], title: 'Planilha da Perfumaria' });
+    } catch { /* cancelou */ }
+    return;
+  }
+
+  baixarArquivo(arquivo, nomeArquivo);
+  mostrarToast('Planilha salva na pasta de downloads.');
 }
 
-/** Abre a tela de compartilhar do celular; sem ela, copia o texto para colar no WhatsApp. */
-async function compartilharTexto(texto) {
-  if (navigator.share) {
-    try {
-      await navigator.share({ text: texto });
-      return;
-    } catch (erro) {
-      if (erro.name === 'AbortError') return;
-    }
-  }
-
-  try {
-    await navigator.clipboard.writeText(texto);
-    mostrarToast('Relatório copiado. Agora é só colar na conversa.');
-  } catch {
-    mostrarToast('Este aparelho não deixou enviar o relatório.');
-  }
+function nomeArquivoRelatorio() {
+  return `perfumaria-${chavePeriodo(relatorio.ref, relatorio.tipo)}.csv`;
 }
 
 /* ==================== compras por empresa ==================== */
@@ -598,40 +698,55 @@ function renderCompras(lista) {
   }
 }
 
-/** Resumo das compras em texto, para mandar pelo WhatsApp. */
+/** Compras em texto, com a formatação do WhatsApp (*negrito*, _itálico_). */
 function textoDasCompras(lista) {
+  const { tipo, empresa } = compras;
   const pagamentos = pagamentosDeCompras(lista);
+  const r = resumir(pagamentos);
+
   const linhas = [
-    `🌸 PERFUMARIA — Compras ${compras.empresa ? `da ${compras.empresa}` : 'por empresa'}`,
-    nomePeriodoCompras(),
+    '*🌸 PERFUMARIA*',
+    `${empresa ? `Compras da ${empresa}` : 'Compras por empresa'} — ${nomePeriodoCompras()}`,
     '',
-    `TOTAL PAGO: ${formatoMoeda(resumir(pagamentos).saidas)} (${textoQuantidade(pagamentos.length)})`,
+    `🛍️ Total pago: *${formatoMoeda(r.saidas)}* (${textoQuantidade(pagamentos.length)})`,
   ];
 
-  for (const op of totaisPorOpcao('saida', resumir(pagamentos).saida)) {
-    const daEmpresa = pagamentos
-      .filter((item) => item.categoria === op.nome)
-      .sort((a, b) => a.data.localeCompare(b.data));
-    if (daEmpresa.length === 0) continue;
+  const daEmpresa = (nome) => pagamentos.filter((item) => item.categoria === nome);
+  const nomeDoMes = (mes) => (tipo === 'ano' ? MESES[Number(mes.slice(5, 7)) - 1] : nomeMesAno(mes));
 
-    linhas.push('', `${op.nome}: ${formatoMoeda(op.total)} (${textoQuantidade(daEmpresa.length)})`);
+  if (!empresa) {
+    const comValor = totaisPorOpcao('saida', r.saida).filter(({ total }) => total > 0);
+    if (comValor.length > 0) linhas.push('', '_Por empresa:_');
+    for (const { nome, total } of comValor) {
+      linhas.push(`• ${nome}: *${formatoMoeda(total)}* (${daEmpresa(nome).length})`);
+    }
+  }
 
-    // cada pagamento no mês ou com uma empresa aberta; no ano e no "tudo", somado por mês
-    if (compras.tipo === 'mes' || compras.empresa) {
-      for (const item of daEmpresa) {
-        const data = compras.tipo === 'mes' ? formatoData(item.data).slice(0, 5) : formatoData(item.data);
-        const anotacao = item.descricao ? ` — ${item.descricao}` : '';
-        linhas.push(`  ${data}: ${formatoMoeda(item.valor)}${anotacao}`);
-      }
-    } else {
-      for (const [mes, grupo] of agruparPorData(daEmpresa, 7).reverse()) {
-        const nome = compras.tipo === 'ano' ? MESES[Number(mes.slice(5, 7)) - 1] : nomeMesAno(mes);
-        linhas.push(`  ${nome}: ${formatoMoeda(resumir(grupo).saidas)}`);
+  if (tipo !== 'mes') {
+    // no ano e no "tudo", o mês a mês de cada empresa
+    for (const { nome } of totaisPorOpcao('saida', r.saida).filter(({ total }) => total > 0)) {
+      linhas.push('', empresa ? '_Mês a mês:_' : `_${nome} mês a mês:_`);
+      for (const [mes, grupo] of agruparPorData(daEmpresa(nome), 7).reverse()) {
+        linhas.push(`• ${nomeDoMes(mes)}: ${formatoMoeda(resumir(grupo).saidas)} (${grupo.length})`);
       }
     }
   }
 
+  // cada pagamento: no mês, ou quando uma empresa está aberta
+  if ((tipo === 'mes' || empresa) && pagamentos.length > 0) {
+    linhas.push('', '_Pagamentos:_');
+    linhasDeLancamentos(linhas, pagamentos, true);
+  }
+
   return linhas.join('\n');
+}
+
+function nomeArquivoCompras() {
+  const periodo = compras.tipo === 'tudo' ? 'tudo' : chavePeriodo(compras.ref, compras.tipo);
+  const empresa = compras.empresa
+    ? `-${normalizarTexto(compras.empresa).replace(/[^a-z0-9]+/g, '-')}`
+    : '';
+  return `perfumaria-compras${empresa}-${periodo}.csv`;
 }
 
 /* ==================== formulário ==================== */
@@ -820,18 +935,20 @@ function baixarPlanilha() {
     return;
   }
 
-  const blob = new Blob([BOM + gerarCSV(lista)], { type: 'text/csv;charset=utf-8;' });
+  baixarArquivo(new Blob([BOM + gerarCSV(lista)], { type: 'text/csv;charset=utf-8;' }), nomeDaPlanilha());
+  registrarExportacao();
+  mostrarToast('Planilha salva na pasta de downloads.');
+}
+
+function baixarArquivo(blob, nomeArquivo) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = nomeDaPlanilha();
+  link.download = nomeArquivo;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-  registrarExportacao();
-  mostrarToast('Planilha salva na pasta de downloads.');
 }
 
 /** Abre a tela de compartilhar do celular (WhatsApp, e-mail…) com a planilha anexada. */
@@ -1120,6 +1237,7 @@ function render() {
   renderInicio(lista);
   renderRelatorio(lista);
   renderCompras(lista);
+  renderDicasWhatsApp();
 
   const ultima = ultimaExportacao();
   document.getElementById('ultima-exportacao').textContent = ultima
@@ -1163,7 +1281,12 @@ function init() {
   document.getElementById('periodo-proximo').addEventListener('click', () => {
     abrirRelatorio(relatorio.tipo, deslocarPeriodo(relatorio.ref, relatorio.tipo, 1));
   });
-  document.getElementById('btn-enviar-relatorio').addEventListener('click', enviarRelatorio);
+  document.getElementById('btn-whats-relatorio').addEventListener('click', () => {
+    enviarNoWhatsApp(textoDoRelatorio(carregar()));
+  });
+  document.getElementById('btn-arquivo-relatorio').addEventListener('click', () => {
+    enviarArquivo(itensDoRelatorio(carregar()), nomeArquivoRelatorio());
+  });
 
   document.querySelectorAll('[data-compras]').forEach((aba) => {
     aba.addEventListener('click', () => abrirCompras(aba.dataset.compras, hojeISO(), compras.empresa));
@@ -1177,8 +1300,26 @@ function init() {
   document.getElementById('compras-voltar').addEventListener('click', () => {
     abrirCompras(compras.tipo, compras.ref, null);
   });
-  document.getElementById('btn-enviar-compras').addEventListener('click', () => {
-    compartilharTexto(textoDasCompras(carregar()));
+  document.getElementById('btn-whats-compras').addEventListener('click', () => {
+    enviarNoWhatsApp(textoDasCompras(carregar()));
+  });
+  document.getElementById('btn-arquivo-compras').addEventListener('click', () => {
+    enviarArquivo(pagamentosDeCompras(carregar()), nomeArquivoCompras());
+  });
+
+  document.getElementById('btn-salvar-fone').addEventListener('click', () => {
+    const fone = document.getElementById('cfg-fone').value.trim();
+    const digitos = fone.replace(/\D/g, '').length;
+    if (fone && digitos < 10) {
+      mostrarToast('Digite o número com DDD.');
+      return;
+    }
+    if (!gravarConfig({ ...lerConfig(), fone })) {
+      mostrarToast('O celular não deixou salvar o número.');
+      return;
+    }
+    renderDicasWhatsApp();
+    mostrarToast(fone ? 'Número salvo!' : 'Número apagado.');
   });
 
   document.getElementById('btn-enviar-planilha').addEventListener('click', enviarPlanilha);

@@ -28,12 +28,17 @@ aquele dia; no do ano, tocar em um mês abre aquele mês.
 
 ## Acompanhar o caixa de longe
 
-Os dados ficam **só no celular dela**. Há duas formas de receber:
+Os dados ficam **só no celular dela**. Para receber, cadastre o seu número em
+**Planilha → WhatsApp dos relatórios** (com DDD; o `55` do Brasil é posto sozinho).
 
-- **📤 Enviar este relatório** (tela Relatórios): manda o resumo do dia, mês ou ano como
-  texto, direto numa conversa do WhatsApp.
-- **📤 Enviar este resumo** (tela Compras): o mesmo, com as compras por empresa do período
-  (ou só de uma empresa, quando ela estiver aberta).
+- **🟢 ENVIAR NO WHATSAPP** (telas Relatórios e Compras): abre a conversa com esse número já
+  com a mensagem escrita — só falta tocar em enviar. A mensagem vem formatada (negrito,
+  itálico, ➕/➖) com entrou, saiu, saldo, os totais por forma de pagamento e por empresa e a
+  lista de lançamentos, separada por dia (até 60; no relatório do ano, o mês a mês). Sem
+  número cadastrado, o WhatsApp pede para escolher a conversa.
+- **📎 Enviar planilha (arquivo)** (telas Relatórios e Compras): a planilha só do período
+  (e da empresa, se houver uma aberta) que está na tela, por exemplo
+  `perfumaria-2026-10.csv` ou `perfumaria-compras-natura-2026.csv`.
 - **📤 Enviar planilha** (tela Planilha): manda o arquivo `perfumaria-AAAA-MM-DD.csv` com
   todas as anotações. Abre no Excel com acentos corretos.
 

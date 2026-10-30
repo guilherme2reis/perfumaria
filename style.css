@@ -103,6 +103,8 @@ main {
 }
 
 .btn-principal { background: var(--marca); color: #fff; }
+/* verde escuro do WhatsApp: ela reconhece o botão pela cor do aplicativo */
+.btn-whats { background: #075e54; color: #fff; min-height: 72px; font-size: 1.2rem; }
 .btn-neutro { background: #fff; color: var(--texto); border-color: var(--borda); }
 .btn-perigo { background: #fff; color: var(--saida); border-color: var(--saida); }
 .btn-salvar { min-height: 72px; font-size: 1.3rem; }

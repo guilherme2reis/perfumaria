@@ -133,7 +133,9 @@
       <ul class="lista" id="detalhe-lista"></ul>
     </section>
 
-    <button type="button" class="btn btn-principal" id="btn-enviar-relatorio">📤 Enviar este relatório</button>
+    <button type="button" class="btn btn-whats" id="btn-whats-relatorio">🟢 ENVIAR NO WHATSAPP</button>
+    <button type="button" class="btn btn-neutro" id="btn-arquivo-relatorio">📎 Enviar planilha (arquivo)</button>
+    <p class="dica dica-whats"></p>
 
   </section>
 
@@ -181,7 +183,9 @@
       </section>
     </div>
 
-    <button type="button" class="btn btn-principal" id="btn-enviar-compras">📤 Enviar este resumo</button>
+    <button type="button" class="btn btn-whats" id="btn-whats-compras">🟢 ENVIAR NO WHATSAPP</button>
+    <button type="button" class="btn btn-neutro" id="btn-arquivo-compras">📎 Enviar planilha (arquivo)</button>
+    <p class="dica dica-whats"></p>
 
   </section>
 
@@ -197,6 +201,19 @@
       <button type="button" class="btn btn-principal" id="btn-enviar-planilha">📤 Enviar planilha</button>
       <button type="button" class="btn btn-neutro" id="btn-baixar-planilha">⬇️ Salvar planilha no aparelho</button>
       <p class="dica" id="ultima-exportacao"></p>
+    </section>
+
+    <section class="card">
+      <h2>WhatsApp dos relatórios</h2>
+      <p class="texto-ajuda">
+        Número de quem recebe os relatórios. O botão verde abre a conversa direto com ele.
+      </p>
+      <div class="campo">
+        <label for="cfg-fone">Número com DDD</label>
+        <input type="tel" id="cfg-fone" inputmode="tel" autocomplete="off" placeholder="Ex.: (28) 99999-9999">
+      </div>
+      <button type="button" class="btn btn-principal" id="btn-salvar-fone">✔ Salvar número</button>
+      <p class="dica dica-whats"></p>
     </section>
 
     <section class="card">
